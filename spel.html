@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BuurtBaas – spel</title>
+<style>
+:root{--bg:#f6f7f4;--sf:#fff;--tx:#1b2a22;--mu:#5d6b63;--ac:#1f7a4d;--bd:#d9ded8;--map:#e9eee6;--gr:#d3dacf;--bad:#b3261e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#121815;--sf:#1c2520;--tx:#e8efe9;--mu:#9bab9f;--ac:#4cc88a;--bd:#2e3a33;--map:#18211c;--gr:#26322b;--bad:#ff8a80}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;height:100%}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--sf);border-bottom:1px solid var(--bd);gap:8px}
+header b{font-size:17px}.score{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ac)}
+#wrap{flex:1;position:relative;min-height:0;background:var(--map)}canvas{width:100%;height:100%;display:block;touch-action:none}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+button{font:inherit;border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:10px;padding:10px 14px;cursor:pointer}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}button:disabled{opacity:.5}
+.zoom button{padding:6px 12px;font-size:20px}
+footer{padding:10px 14px;background:var(--sf);border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.mu{color:var(--mu);font-size:14px}
+label.t{display:flex;gap:6px;align-items:center;font-size:14px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:5}
+.ov.on{display:flex}.card{background:var(--sf);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+.card h2{margin:0 0 4px;font-size:18px}.opts{display:grid;gap:8px;margin:12px 0}.opts button{text-align:left}
+.ok{color:var(--ac);font-weight:600}.no{color:var(--bad);font-weight:600}
+input[type=text]{font:inherit;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);width:100%}
+</style></head><body>
+<header><b><a href="index.html" style="color:inherit;text-decoration:none">🗺️ BuurtBaas</a></b><span><span id="who" class="mu"></span> · <span class="score" id="score">0 m²</span></span></header>
+<div id="wrap"><canvas id="cv"></canvas>
+<div class="zoom"><button id="zi" aria-label="Inzoomen">+</button><button id="zo" aria-label="Uitzoomen">−</button></div></div>
+<footer>
+<div class="row"><span class="mu" id="gps">GPS: wachten op locatie…</span>
+<label class="t"><input type="checkbox" id="demo"> Testmodus (tik op kaart)</label></div>
+<div class="row"><button class="p" id="claim" style="flex:1">Claim dit gebied</button><button id="reset">Reset</button></div>
+<div class="mu" id="buurten"></div>
+</footer>
+
+<div class="ov on" id="start"><div class="card"><h2>Welkom, veroveraar!</h2>
+<p class="mu">Loop door de buurt en claim vakjes van 50×50 m. Je krijgt een vraag over de buurt waar je staat (CBS-cijfers). Goed antwoord = gebied veroverd.</p>
+<input type="text" id="name" placeholder="Jouw naam of teamnaam" maxlength="20">
+<div class="row" style="margin-top:12px"><label class="t">Kleur <input type="color" id="col" value="#e4572e"></label><button class="p" id="go">Start</button></div></div></div>
+
+<div class="ov" id="q"><div class="card"><h2 id="qt"></h2><div class="mu" id="qs"></div><div class="opts" id="qo"></div><div id="qf"></div></div></div>
+
+<script>
+/* ===== Instellingen ===== */
+const YEAR = 2025;                                  // jaar van de CBS Wijken en Buurten-dataset
+const API  = "https://api.pdok.nl/cbs/wijken-en-buurten-" + YEAR + "/ogc/v1";
+const PROXY = "";                                   // bij CORS-problemen: "proxy.php?url=" (zie proxy.php)
+const CELL = 50, CLAIM_RADIUS = 1, COOLDOWN = 20;   // vakgrootte (m), 1 = 3×3 vakjes, wachttijd (s) na fout
+
+const $=id=>document.getElementById(id);
+let S={name:"",color:"#e4572e",claimed:{},origin:null,buurten:{}};
+let pos={x:0,y:0},trail=[],scale=1.2,cool=0,acc=null,lastQ="",cache={},busy=false;
+const cv=$("cv"),cx=cv.getContext("2d");
+function load(){try{const s=JSON.parse(localStorage.getItem("cdb")||"null");if(s)S=Object.assign(S,s)}catch(e){}}
+function save(){try{localStorage.setItem("cdb",JSON.stringify(S))}catch(e){}}
+function ensureOrigin(lat,lon){if(!S.origin){S.origin={lat,lon};save()}}
+function toXY(lat,lon){const o=S.origin;return{x:(lon-o.lon)*111320*Math.cos(o.lat*Math.PI/180),y:(lat-o.lat)*110540}}
+function toLL(x,y){const o=S.origin;return{lat:o.lat+y/110540,lon:o.lon+x/(111320*Math.cos(o.lat*Math.PI/180))}}
+const cellOf=p=>[Math.floor(p.x/CELL),Math.floor(p.y/CELL)];
+function updUI(){const n=Object.keys(S.claimed).length;$("score").textContent=(n*CELL*CELL).toLocaleString("nl-NL")+" m²";
+ const b=Object.values(S.buurten);$("buurten").textContent=b.length?"Buurten met claim: "+b.join(", "):""}
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ===== Kaart ===== */
+function draw(){
+ const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;cv.width=r.width*d;cv.height=r.height*d;cx.setTransform(d,0,0,d,0,0);
+ const W=r.width,H=r.height,sx=x=>W/2+(x-pos.x)*scale,sy=y=>H/2-(y-pos.y)*scale;
+ cx.fillStyle=css("--map");cx.fillRect(0,0,W,H);
+ const c0=Math.floor((pos.x-W/2/scale)/CELL),c1=Math.ceil((pos.x+W/2/scale)/CELL),r0=Math.floor((pos.y-H/2/scale)/CELL),r1=Math.ceil((pos.y+H/2/scale)/CELL);
+ cx.lineWidth=1;
+ for(let i=c0;i<=c1;i++)for(let j=r0;j<=r1;j++){
+  const k=i+","+j,x=sx(i*CELL),y=sy((j+1)*CELL),s=CELL*scale;
+  if(S.claimed[k]){cx.globalAlpha=.55;cx.fillStyle=S.claimed[k];cx.fillRect(x,y,s,s);cx.globalAlpha=1;cx.strokeStyle=S.claimed[k]}else cx.strokeStyle=css("--gr");
+  cx.strokeRect(x,y,s,s)}
+ const [ci,cj]=cellOf(pos);cx.strokeStyle=css("--tx");cx.lineWidth=2.5;cx.strokeRect(sx(ci*CELL),sy((cj+1)*CELL),CELL*scale,CELL*scale);
+ if(trail.length>1){cx.strokeStyle=S.color;cx.lineWidth=3;cx.beginPath();trail.forEach((p,i)=>i?cx.lineTo(sx(p.x),sy(p.y)):cx.moveTo(sx(p.x),sy(p.y)));cx.stroke()}
+ if(acc){cx.globalAlpha=.15;cx.fillStyle=S.color;cx.beginPath();cx.arc(W/2,H/2,acc*scale,0,7);cx.fill();cx.globalAlpha=1}
+ cx.fillStyle="#fff";cx.beginPath();cx.arc(W/2,H/2,9,0,7);cx.fill();cx.fillStyle=S.color;cx.beginPath();cx.arc(W/2,H/2,6,0,7);cx.fill();
+}
+function moveTo(x,y){pos={x,y};const l=trail[trail.length-1];if(!l||Math.hypot(l.x-x,l.y-y)>2)trail.push({x,y});draw()}
+function startGPS(){
+ if(!navigator.geolocation){$("gps").textContent="Geen GPS beschikbaar. Gebruik de testmodus.";return}
+ navigator.geolocation.watchPosition(p=>{
+  if($("demo").checked)return;
+  ensureOrigin(p.coords.latitude,p.coords.longitude);
+  acc=p.coords.accuracy;const q=toXY(p.coords.latitude,p.coords.longitude);moveTo(q.x,q.y);
+  $("gps").textContent="GPS: ±"+Math.round(acc)+" m nauwkeurig";
+ },e=>{$("gps").textContent="GPS niet beschikbaar ("+e.message+"). Zet locatie aan of gebruik de testmodus."},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
+}
+
+/* ===== CBS-data via PDOK (OGC API Features) ===== */
+async function getJSON(url){
+ const c=new AbortController(),t=setTimeout(()=>c.abort(),12000);
+ try{const r=await fetch(PROXY?PROXY+encodeURIComponent(url):url,{signal:c.signal});if(!r.ok)throw new Error("HTTP "+r.status);return await r.json()}
+ finally{clearTimeout(t)}
+}
+function inRing(x,y,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])ins=!ins}return ins}
+function inGeom(x,y,g){const polys=g.type==="Polygon"?[g.coordinates]:g.type==="MultiPolygon"?g.coordinates:[];
+ return polys.some(p=>inRing(x,y,p[0])&&!p.slice(1).some(h=>inRing(x,y,h)))}
+async function buurtAt(lat,lon){
+ const key=lat.toFixed(4)+","+lon.toFixed(4);if(cache[key])return cache[key];
+ const dx=0.00003,dy=0.00002;
+ const url=API+"/collections/buurten/items?f=json&limit=10&bbox="+[lon-dx,lat-dy,lon+dx,lat+dy].join(",");
+ const j=await getJSON(url),fs=j.features||[];
+ const f=fs.find(f=>f.geometry&&inGeom(lon,lat,f.geometry))||fs[0]||null;
+ if(f)cache[key]=f.properties;return f?f.properties:null;
+}
+
+/* ===== Vragen ===== */
+const DEFS=[
+ {f:"aantal_inwoners",type:"int",q:n=>"Hoeveel inwoners heeft de buurt "+n+"?",what:"het aantal inwoners",unit:"",hint:"Schat: hoeveel woningen zie je en hoeveel mensen wonen er gemiddeld in één woning?"},
+ {f:"bevolkingsdichtheid_inwoners_per_km2",type:"int",q:n=>"Wat is de bevolkingsdichtheid van "+n+" (inwoners per km²)?",what:"de bevolkingsdichtheid",unit:" inwoners/km²",hint:"Kijk om je heen: hoogbouw, rijtjeshuizen of ruime tuinen en groen?"},
+ {f:"aantal_huishoudens",type:"int",q:n=>"Hoeveel huishoudens zijn er in "+n+"?",what:"het aantal huishoudens",unit:"",hint:"Een huishouden is alle mensen die samen op één adres wonen."},
+ {f:"gemiddelde_huishoudsgrootte",type:"dec",q:n=>"Wat is de gemiddelde huishoudensgrootte in "+n+"?",what:"de gemiddelde huishoudensgrootte",unit:" personen",hint:"Zie je vooral gezinswoningen of appartementen?"},
+ {f:"percentage_personen_65_jaar_en_ouder",type:"pct",q:n=>"Hoeveel procent van de inwoners van "+n+" is 65 jaar of ouder?",what:"het aandeel 65-plussers",unit:"%",hint:"Denk aan wat je ziet: speeltuinen, scholen of juist zorgwoningen en bankjes?"},
+ {f:"percentage_personen_0_tot_15_jaar",type:"pct",q:n=>"Hoeveel procent van de inwoners van "+n+" is jonger dan 15 jaar?",what:"het aandeel kinderen (0–15 jaar)",unit:"%",hint:"Zie je speelplekken, scholen of kinderfietsen?"},
+ {f:"percentage_eenpersoonshuishoudens",type:"pct",q:n=>"Hoeveel procent van de huishoudens in "+n+" bestaat uit één persoon?",what:"het aandeel eenpersoonshuishoudens",unit:"%",hint:"Appartementen en studio’s trekken vaak meer alleenwonenden."},
+ {f:"percentage_huishoudens_met_kinderen",type:"pct",q:n=>"Hoeveel procent van de huishoudens in "+n+" heeft kinderen?",what:"het aandeel huishoudens met kinderen",unit:"%",hint:"Kijk naar het type woningen om je heen."},
+ {f:"oppervlakte_land_in_ha",type:"int",q:n=>"Hoe groot is "+n+" (landoppervlak in hectare)?",what:"het landoppervlak",unit:" ha",hint:"1 hectare is 100 × 100 m. Een voetbalveld is ongeveer 0,7 ha."}
+];
+const sh=a=>a.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1]);
+const nl=(n,d=0)=>n.toLocaleString("nl-NL",{minimumFractionDigits:d,maximumFractionDigits:d});
+function roundSig(v){if(v<30)return Math.round(v);const p=Math.pow(10,Math.floor(Math.log10(v))-1);return Math.round(v/p)*p}
+function options(v,type){
+ let correct,c=[];
+ if(type==="pct"){correct=Math.round(v);for(const o of sh([-14,-9,-6,-4,-3,3,4,6,9,14])){const x=correct+o;if(x>=0&&x<=100&&!c.includes(x))c.push(x);if(c.length===3)break}}
+ else if(type==="dec"){correct=Math.round(v*10)/10;for(const o of sh([-.6,-.4,-.3,.3,.4,.6,.9])){const x=Math.round((correct+o)*10)/10;if(x>=1&&x!==correct&&!c.includes(x))c.push(x);if(c.length===3)break}}
+ else{correct=roundSig(v);for(const f of sh([.4,.55,.7,1.4,1.8,2.5])){const x=roundSig(v*f);if(x!==correct&&x>0&&!c.includes(x))c.push(x);if(c.length===3)break}}
+ let k=1;while(c.length<3){const x=correct+k*Math.max(1,Math.round(correct*.25));if(!c.includes(x))c.push(x);k++}
+ const all=[correct,...c].sort((a,b)=>a-b);
+ const lab=x=>type==="pct"?x+"%":type==="dec"?nl(x,1):(v>=30?"ca. ":"")+nl(x);
+ return all.map(x=>({l:lab(x),ok:x===correct}));
+}
+function makeQ(p){
+ const naam=p.buurtnaam,ok=DEFS.filter(d=>typeof p[d.f]==="number"&&p[d.f]>0&&p[d.f]>-99990&&d.f!==lastQ);
+ if(!ok.length)return null;
+ const d=ok[Math.floor(Math.random()*ok.length)];lastQ=d.f;const v=p[d.f];
+ const shown=d.type==="dec"?nl(v,1):nl(v);
+ return{t:d.q(naam),s:"Buurt "+naam+", gemeente "+p.gemeentenaam+". "+d.hint,o:options(v,d.type),
+  e:"Klopt niet? In "+naam+" is "+d.what+" precies "+shown+d.unit+" (CBS "+YEAR+")."};
+}
+function showQ(q,p){
+ $("qt").textContent=q.t;$("qs").textContent=q.s;$("qf").innerHTML="";$("qo").innerHTML="";
+ q.o.forEach(o=>{const b=document.createElement("button");b.textContent=o.l;b.onclick=()=>answer(o.ok,q,p);$("qo").appendChild(b)});
+}
+function msgCard(title,txt){$("qt").textContent=title;$("qs").textContent=txt;$("qo").innerHTML="";$("qf").innerHTML='<button class="p" id="cl">Sluiten</button>';$("cl").onclick=()=>$("q").classList.remove("on");$("q").classList.add("on")}
+async function openQ(){
+ if(busy)return;
+ const left=Math.ceil((cool-Date.now())/1000);if(left>0){$("gps").textContent="Wacht nog "+left+" s na een fout antwoord.";return}
+ if(!S.origin){$("gps").textContent="Nog geen locatie. Wacht op GPS of gebruik de testmodus.";return}
+ busy=true;$("claim").disabled=true;$("claim").textContent="Buurt opzoeken…";
+ try{
+  const ll=toLL(pos.x,pos.y),p=await buurtAt(ll.lat,ll.lon);
+  if(!p)return msgCard("Geen buurt gevonden","Je staat buiten Nederland of op een plek zonder CBS-buurt. Loop verder en probeer opnieuw.");
+  if(p.water&&p.water!=="NEE")return msgCard("Je staat op het water","Zoek een plek op land om te claimen.");
+  const q=makeQ(p);if(!q)return msgCard("Geen vraag beschikbaar","Het CBS heeft voor "+p.buurtnaam+" geen cijfers (te weinig inwoners). Probeer een andere buurt.");
+  showQ(q,p);$("q").classList.add("on");
+ }catch(e){msgCard("Ophalen mislukt","De CBS-data kon niet worden geladen ("+e.message+"). Controleer je verbinding en probeer opnieuw.")}
+ finally{busy=false;$("claim").disabled=false;$("claim").textContent="Claim dit gebied"}
+}
+function answer(ok,q,p){
+ [...$("qo").children].forEach(b=>b.disabled=true);let msg;
+ if(ok){const[ci,cj]=cellOf(pos);let n=0;
+  for(let i=-CLAIM_RADIUS;i<=CLAIM_RADIUS;i++)for(let j=-CLAIM_RADIUS;j<=CLAIM_RADIUS;j++){const k=(ci+i)+","+(cj+j);if(!S.claimed[k]){S.claimed[k]=S.color;n++}}
+  S.buurten[p.buurtcode]=p.buurtnaam;save();updUI();draw();
+  msg='<p class="ok">Goed! Je claimt '+n+' vakjes ('+nl(n*CELL*CELL)+' m²).</p>'}
+ else{cool=Date.now()+COOLDOWN*1000;msg='<p class="no">Helaas, fout. Even '+COOLDOWN+' seconden wachten.</p>'}
+ $("qf").innerHTML=msg+'<p class="mu">'+q.e+'</p><button class="p" id="cl">Sluiten</button>';
+ $("cl").onclick=()=>$("q").classList.remove("on");
+}
+
+/* ===== Events ===== */
+$("claim").onclick=openQ;
+$("zi").onclick=()=>{scale=Math.min(6,scale*1.4);draw()};$("zo").onclick=()=>{scale=Math.max(.25,scale/1.4);draw()};
+$("reset").onclick=()=>{if(confirm("Alle geclaimde vakjes wissen?")){S.claimed={};S.buurten={};save();updUI();draw()}};
+cv.addEventListener("click",e=>{if(!$("demo").checked)return;
+ ensureOrigin(51.6978,5.3037);  // testmodus zonder GPS: start in ’s-Hertogenbosch
+ const r=cv.getBoundingClientRect();moveTo(pos.x+(e.clientX-r.left-r.width/2)/scale,pos.y-(e.clientY-r.top-r.height/2)/scale)});
+$("demo").onchange=()=>{$("gps").textContent=$("demo").checked?"Testmodus: tik op de kaart om te lopen":"GPS: wachten op locatie…"};
+$("go").onclick=()=>{S.name=$("name").value.trim()||"Speler";S.color=$("col").value;save();$("who").textContent=S.name;$("start").classList.remove("on");startGPS();updUI();draw()};
+addEventListener("resize",draw);
+load();if(S.name){$("name").value=S.name;$("col").value=S.color}updUI();draw();
+</script></body></html>

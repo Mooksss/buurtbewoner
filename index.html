@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark"><meta name="theme-color" content="#0F170D">
+<meta name="description" content="BuurtBaas: het buitenspel voor aardrijkskunde. Claim je buurt met live CBS-vragen.">
+<title>BuurtBaas – Claim jouw buurt</title>
+<style>
+:root{color-scheme:dark;--bg:#0F170D;--bg2:#141f11;--line:#2a3a25;--tx:#eef5e8;--mu:#9bb08f;--ac:#c6f24e;--ac2:#7fd13b;
+--disp:"Arial Narrow","Helvetica Neue Condensed","Roboto Condensed",Impact,Arial,sans-serif;--body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.55 var(--body);overflow-x:hidden}
+a{color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:var(--disp);text-transform:uppercase;letter-spacing:.01em;line-height:.95;margin:0;font-weight:800}
+h1{font-size:clamp(56px,11vw,132px)}h2{font-size:clamp(36px,6vw,68px);margin-bottom:22px}h3{font-size:24px;line-height:1.05}
+.ac{color:var(--ac)}
+.tag{font-family:var(--disp);text-transform:uppercase;letter-spacing:.14em;color:var(--ac);font-size:14px;font-weight:700}
+.scan{position:relative}.scan::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px)}
+/* nav */
+nav{position:sticky;top:0;z-index:20;background:rgba(15,23,13,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+nav .wrap{display:flex;justify-content:space-between;align-items:center;height:60px}
+.logo{font-family:var(--disp);font-weight:800;font-size:26px;text-transform:uppercase;text-decoration:none;letter-spacing:.02em}
+.logo i{font-style:normal;color:var(--ac)}
+nav a.l{color:var(--mu);text-decoration:none;font-size:15px}
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 26px;border:2px solid var(--ac);background:var(--ac);color:#0F170D;font-family:var(--disp);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.04em;text-decoration:none;clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}.btn.o{background:transparent;color:var(--ac)}
+/* hero */
+.hero{position:relative;padding:70px 0 90px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 50% at 75% 40%,rgba(198,242,78,.14),transparent 70%),linear-gradient(var(--line) 1px,transparent 1px) 0 0/52px 52px,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/52px 52px;opacity:.55;mask-image:linear-gradient(#000 50%,transparent)}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center}
+.hero p{max-width:520px;color:var(--mu);font-size:19px;margin:22px 0 30px}.cta{display:flex;gap:14px;flex-wrap:wrap}
+/* phone */
+.phone{width:min(290px,100%);aspect-ratio:9/18;margin:0 auto;border:3px solid #33452d;border-radius:36px;background:#0a1008;padding:12px;box-shadow:0 0 0 6px #121c0f,0 30px 80px rgba(198,242,78,.12);position:relative}
+.screen{position:absolute;inset:12px;border-radius:26px;background:var(--bg2);overflow:hidden;opacity:0;transition:opacity .35s;display:flex;flex-direction:column}
+.screen.on{opacity:1}
+.sbar{padding:12px 14px 8px;font-family:var(--disp);text-transform:uppercase;font-size:15px;display:flex;justify-content:space-between;color:var(--mu)}
+.sbar b{color:var(--ac)}
+.grid{flex:1;display:grid;grid-template-columns:repeat(8,1fr);grid-auto-rows:1fr;gap:2px;padding:6px 10px 14px}
+.grid span{background:#1a2916;border-radius:2px}.grid span.c{background:var(--ac);opacity:.85}.grid span.d{background:#2f4a22}.grid span.me{background:#fff;border-radius:50%;box-shadow:0 0 0 5px rgba(255,255,255,.25)}
+.grid span.t{background:#c6f24e55}
+.qc{padding:14px;display:flex;flex-direction:column;gap:8px;flex:1}
+.qc h4{margin:0 0 4px;font-size:17px;line-height:1.2}.qc small{color:var(--mu)}
+.opt{border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:15px;background:#0F170D}.opt.ok{border-color:var(--ac);color:var(--ac)}
+.res{margin-top:auto;padding:12px;border-radius:10px;background:rgba(198,242,78,.12);color:var(--ac);font-weight:700;text-align:center}
+.float{position:absolute;right:-6px;top:38px;background:var(--ac);color:#0F170D;font-family:var(--disp);font-weight:800;padding:6px 12px;text-transform:uppercase;transform:rotate(4deg)}
+/* sections */
+section{padding:90px 0;border-top:1px solid var(--line)}
+.sub{color:var(--mu);max-width:640px;margin-bottom:40px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{position:relative;border:1px solid var(--line);background:var(--bg2);padding:26px}
+.card::before,.card::after{content:"";position:absolute;width:16px;height:16px;border:2px solid var(--ac)}
+.card::before{top:-2px;left:-2px;border-right:0;border-bottom:0}.card::after{right:-2px;bottom:-2px;border-left:0;border-top:0}
+.card p{color:var(--mu);margin:10px 0 0}.card .tag{display:block;margin-bottom:12px}
+.stats{background:var(--bg2)}.stats .wrap{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;text-align:center}
+.stats b{display:block;font-family:var(--disp);font-size:clamp(48px,9vw,96px);line-height:1;color:var(--ac)}
+.stats span{color:var(--mu);text-transform:uppercase;letter-spacing:.1em;font-size:14px}
+/* steps */
+.how{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center}
+.steps{display:flex;flex-direction:column;gap:12px}
+.step{all:unset;cursor:pointer;display:grid;grid-template-columns:54px 1fr;gap:14px;padding:18px;border:1px solid var(--line);background:transparent;transition:.2s}
+.step.on{border-color:var(--ac);background:var(--bg2)}
+.step em{font:800 44px/1 var(--disp);color:var(--line);font-style:normal}.step.on em{color:var(--ac)}
+.step h3{margin-bottom:6px}.step p{margin:0;color:var(--mu);font-size:16px}
+.step:focus-visible{outline:2px solid var(--ac)}
+/* features */
+.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.feat .card h3{margin-top:2px}
+/* faq */
+details{border-bottom:1px solid var(--line);padding:18px 0}summary{cursor:pointer;font-family:var(--disp);text-transform:uppercase;font-size:24px;font-weight:800;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::after{content:"+";color:var(--ac)}details[open] summary::after{content:"–"}details p{color:var(--mu);margin:12px 0 0;max-width:720px}
+summary::-webkit-details-marker{display:none}
+.final{text-align:center;background:radial-gradient(50% 80% at 50% 100%,rgba(198,242,78,.16),transparent 70%)}
+.final .cta{justify-content:center}
+footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--mu);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media(max-width:820px){.hero .wrap,.how,.two,.feat,.stats .wrap{grid-template-columns:1fr}.hero{padding-top:40px}.how .phone{order:-1}section{padding:64px 0}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style></head><body>
+<nav><div class="wrap"><a class="logo" href="#top">Buurt<i>Baas</i></a><a class="l" href="#vragen">Veelgestelde vragen</a></div></nav>
+
+<header class="hero" id="top"><div class="wrap">
+ <div>
+  <div class="tag">Aardrijkskunde // buitenspel</div>
+  <h1>Claim jouw <span class="ac">buurt</span></h1>
+  <p>Ga naar buiten, beantwoord vragen over de buurt waar je staat en verover zoveel mogelijk grond. Echte CBS-cijfers maken van elke straat een les.</p>
+  <div class="cta"><a class="btn" href="spel.html">Speel nu →</a><a class="btn o" href="#hoe">Hoe werkt het?</a></div>
+ </div>
+ <div style="position:relative"><div class="phone" aria-hidden="true"><div class="screen on" id="hs"></div></div><div class="float">+ 22.500 m²</div></div>
+</div></header>
+
+<section id="spelen"><div class="wrap">
+ <div class="tag">// twee manieren</div>
+ <h2>Buiten spelen, binnen oefenen.</h2>
+ <p class="sub">Eén spel, twee manieren om het te spelen. Gebruik de GPS van de telefoon op schoolplein of in de wijk, of oefen eerst in de klas.</p>
+ <div class="two">
+  <div class="card"><span class="tag">// Buiten</span><h3>Loop je gebied bij elkaar</h3><p>Je live locatie bepaalt in welke buurt je staat en welke vraag je krijgt. Elk goed antwoord verovert grond rond jouw positie.</p></div>
+  <div class="card"><span class="tag">// Testmodus</span><h3>Tik je door de kaart</h3><p>Geen GPS of slecht weer? Met de testmodus verplaats je jezelf met een tik op de kaart. Handig voor uitleg in de klas.</p></div>
+ </div>
+</div></section>
+
+<section class="stats scan"><div class="wrap">
+ <div><b>50 m</b><span>Vakjes op de kaart</span></div>
+ <div><b>9</b><span>Soorten buurtvragen</span></div>
+ <div><b>CBS</b><span>Live buurtcijfers</span></div>
+</div></section>
+
+<section id="hoe"><div class="wrap how">
+ <div>
+  <div class="tag">// stap voor stap</div>
+  <h2>Zo werkt het spel.</h2>
+  <div class="steps" id="steps">
+   <button class="step on" data-s="0"><em>1</em><div><h3>Loop door de buurt</h3><p>Open het spel, kies je naam en kleur en ga naar buiten. Je looproute verschijnt live op de kaart.</p></div></button>
+   <button class="step" data-s="1"><em>2</em><div><h3>Beantwoord de buurtvraag</h3><p>Tik op “Claim dit gebied”. De app zoekt je buurt op en stelt een vraag met CBS-cijfers, zoals inwoners of bevolkingsdichtheid.</p></div></button>
+   <button class="step" data-s="2"><em>3</em><div><h3>Verover je gebied</h3><p>Goed? Dan kleuren 3×3 vakjes van 50 m jouw kleur. Fout? Even wachten en opnieuw proberen.</p></div></button>
+  </div>
+ </div>
+ <div class="phone" id="ph" aria-hidden="true"></div>
+</div></section>
+
+<section><div class="wrap">
+ <div class="tag">// wat zit erin</div>
+ <h2>Leren met de wereld als speelveld.</h2>
+ <div class="feat">
+  <div class="card scan"><span class="tag">// 01</span><h3>Echte buurtdata</h3><p>CBS Wijken en Buurten, opgehaald via PDOK. Elke vraag gaat over de buurt waar je echt staat.</p></div>
+  <div class="card scan"><span class="tag">// 02</span><h3>Verover vakjes</h3><p>Een goed antwoord geeft je 3×3 vakjes van 50 m in je eigen kleur. Het totaal zie je als score in m².</p></div>
+  <div class="card scan"><span class="tag">// 03</span><h3>Kijk om je heen</h3><p>Elke vraag heeft een hint die leerlingen laat kijken naar huizen, groen en straten om hen heen.</p></div>
+  <div class="card scan"><span class="tag">// 04</span><h3>Geen installatie</h3><p>Het spel draait in de browser van elke telefoon met GPS. Geen app-store en geen account.</p></div>
+  <div class="card scan"><span class="tag">// 05</span><h3>Eigen kleur</h3><p>Kies naam en kleur. Je voortgang blijft bewaard op je toestel.</p></div>
+  <div class="card scan"><span class="tag">// 06</span><h3>Testmodus</h3><p>Oefen in het lokaal zonder naar buiten te gaan en laat zien hoe het spel werkt.</p></div>
+ </div>
+</div></section>
+
+<section id="vragen"><div class="wrap">
+ <div class="tag">// hulp</div><h2>Veelgestelde vragen.</h2>
+ <details><summary>Hebben leerlingen een account nodig?</summary><p>Nee. Leerlingen vullen een naam of teamnaam in en kiezen een kleur. Dit wordt alleen op hun eigen toestel bewaard.</p></details>
+ <details><summary>Welke gegevens gebruikt het spel?</summary><p>De kerncijfers van het CBS over wijken en buurten (2025), opgehaald via PDOK. Denk aan inwoners, huishoudens, leeftijdsverdeling en oppervlakte per buurt.</p></details>
+ <details><summary>Wordt de locatie van leerlingen opgeslagen?</summary><p>De locatie blijft op het toestel. Alleen de coördinaten van de plek waar een leerling een vraag opvraagt, worden naar PDOK gestuurd om de buurt te bepalen. Er wordt geen locatiehistorie op een server bewaard.</p></details>
+ <details><summary>De GPS werkt niet. Wat nu?</summary><p>Controleer of de pagina via https wordt geopend en of de browser toestemming heeft voor locatie. Of gebruik de testmodus om door de kaart te tikken.</p></details>
+ <details><summary>Kan een klas tegen elkaar spelen?</summary><p>Leerlingen spelen nu elk op hun eigen toestel en vergelijken hun score. Een gezamenlijke klassenranglijst is nog niet beschikbaar.</p></details>
+</div></section>
+
+<section class="final"><div class="wrap">
+ <h2>Start jouw <span class="ac">verovering</span></h2>
+ <p class="sub" style="margin-inline:auto">Pak een telefoon, ga naar buiten en claim de buurt.</p>
+ <div class="cta"><a class="btn" href="spel.html">Speel nu →</a></div>
+</div></section>
+
+<footer><div class="wrap"><span>© BuurtBaas · een aardrijkskundespel</span><span>Bron: CBS Wijken en Buurten 2025 via PDOK (CC BY 4.0)</span></div></footer>
+
+<script>
+// Mini-schermen in de telefoon (kaart, vraag, resultaat)
+function gridHTML(mode){
+ let h='<div class="sbar"><span>BuurtBaas</span><b id="sc">'+(mode===2?"22.500":"0")+' m²</b></div><div class="grid">';
+ const W=8,H=11,me=[4,5],claimed=[];
+ if(mode===2)for(let i=3;i<=5;i++)for(let j=4;j<=6;j++)claimed.push(i+","+j);
+ const old=["1,8","2,8","1,9","6,2","7,2","6,3"];
+ const trail=["2,10","2,9","3,9","3,8","3,7","4,7","4,6"];
+ for(let j=0;j<H;j++)for(let i=0;i<W;i++){
+  const k=i+","+j;let c="";
+  if(i===me[0]&&j===me[1])c="me";else if(claimed.includes(k))c="c";else if(old.includes(k))c="d";else if(mode===0&&trail.includes(k))c="t";
+  h+='<span class="'+c+'"></span>'}
+ return h+"</div>"}
+function qHTML(){return '<div class="sbar"><span>Buurt Zuid</span><b>Vraag</b></div><div class="qc"><h4>Wat is de bevolkingsdichtheid van deze buurt?</h4><small>Kijk om je heen: hoogbouw of ruime tuinen?</small><div class="opt">ca. 1.200 inwoners/km²</div><div class="opt ok">ca. 3.400 inwoners/km²</div><div class="opt">ca. 6.000 inwoners/km²</div><div class="opt">ca. 9.500 inwoners/km²</div><div class="res">Goed! +9 vakjes</div></div>'}
+const screens=[gridHTML(0),qHTML(),gridHTML(2)];
+document.getElementById("hs").innerHTML=gridHTML(2);
+const ph=document.getElementById("ph");ph.innerHTML=screens.map((s,i)=>'<div class="screen'+(i?"":" on")+'">'+s+"</div>").join("");
+const sc=ph.querySelectorAll(".screen"),st=document.querySelectorAll(".step");
+function go(n){sc.forEach((e,i)=>e.classList.toggle("on",i===n));st.forEach((e,i)=>e.classList.toggle("on",i===n))}
+st.forEach(b=>{b.onclick=()=>go(+b.dataset.s);b.onmouseenter=()=>go(+b.dataset.s)});
+</script></body></html>
